@@ -48,7 +48,7 @@
 // For middleware, template engines, response engines, sessions, websockets, mails, subdomains,
 // dynamic subdomains, routes, party of subdomains & routes and much more
 // visit https://www.gitbook.com/book/kataras/iris/details
-package iris // import "github.com/kataras/iris"
+package iris
 
 import (
 	"fmt"
@@ -185,7 +185,8 @@ type (
 		SSH       *SSHServer
 		Available chan bool
 		// this is setted once when .Tester(t) is called
-		testFramework *httpexpect.Expect
+		testFramework     *httpexpect.Expect
+		contextprocessors []func(context *Context, binding interface{}, options ...map[string]interface{}) error
 	}
 )
 
@@ -685,6 +686,25 @@ func (s *Framework) UseGlobal(handlers ...Handler) {
 // It can be called after other, (but before .Listen of course)
 func (s *Framework) UseGlobalFunc(handlersFn ...HandlerFunc) {
 	s.UseGlobal(convertToHandlers(handlersFn)...)
+}
+
+// UseContextProcessor registers context processor for modifying data passed to templates and response engines
+func UseContextProcessor(contextProcessorFunc func(context *Context, binding interface{}, options ...map[string]interface{}) error) {
+	Default.UseContextProcessor(contextProcessorFunc)
+}
+
+// UseContextProcessor registers context processor for modifying data passed to templates and response engines
+func (s *Framework) UseContextProcessor(contextProcessorFunc func(context *Context, binding interface{}, options ...map[string]interface{}) error) {
+	s.contextprocessors = append(s.contextprocessors, contextProcessorFunc)
+}
+
+func (s *Framework) runContextProcessors(context *Context, binding interface{}, options ...map[string]interface{}) error {
+	for _, proc := range s.contextprocessors {
+		if err := proc(context, binding, options...); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Lookup returns a registed route by its name

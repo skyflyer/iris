@@ -545,6 +545,12 @@ func (ctx *Context) Gzip(b []byte, status int) {
 // Note: the options: "gzip" and "charset" are built'n support by Iris, so you can pass these on any template engine or response engine
 func (ctx *Context) RenderWithStatus(status int, name string, binding interface{}, options ...map[string]interface{}) error {
 	ctx.SetStatusCode(status)
+
+	if err := ctx.framework.runContextProcessors(ctx, binding, options...); err != nil {
+		ctx.framework.Logger.Printf("Context processor error! %v", err)
+		return err
+	}
+
 	if strings.IndexByte(name, '.') > -1 { //we have template
 		return ctx.framework.templates.render(ctx, name, binding, options...)
 	}
